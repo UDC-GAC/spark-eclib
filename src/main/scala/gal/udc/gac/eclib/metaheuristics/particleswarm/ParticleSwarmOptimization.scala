@@ -122,9 +122,9 @@ object ParticleSwarmOptimization extends LazyLogging {
       // store swarm static info in the properties store
       // this is a workaround to avoid launching a Spark action on each iteration to collect it
       // -- size (swarm may have less individuals than required in the configuration)
-      propertiesStore(SwarmSize) = PropertyValue[Int](swarm.size)
+      //propertiesStore(SwarmSize) = PropertyValue[Int](swarm.size)
       // -- best global particle
-      propertiesStore(GlobalBest) = PropertyValue[Individual](swarm.best)
+      //propertiesStore(GlobalBest) = PropertyValue[Individual](swarm.best)
       // -- main initial ID
       propertiesStore(SwarmInitialID) = PropertyValue[Int](0)
       // store properties related with the island-based implementation
@@ -178,8 +178,8 @@ object ParticleSwarmOptimization extends LazyLogging {
     // log the initial state
     // TODO: check if part of the implementation can be moved to super and called from here
     @inline override def onEvolutionIterationStart = { s: State =>
-      val (swarm, (generations, evals), timeElapsed) = s
-      val (best, t) = duration {
+      val (swarm:Swarm, (generations, evals), timeElapsed) = s
+      /* val (best, t) = duration {
         // store the absolute elapsed time at the beginning of the evolution (needed by the islands implementation)
         propertiesStore(AbsoluteElapsedTime) = PropertyValue[Duration](timeElapsed)
         // update the best global found until now (included here to account for the time needed in case the swarm is distributed)
@@ -187,6 +187,13 @@ object ParticleSwarmOptimization extends LazyLogging {
         if (best.fitness < propertiesStore(GlobalBest).as[Individual].fitness)
           propertiesStore(GlobalBest) = PropertyValue[Individual](best)
         best
+      }*/
+
+      val ((best, hbest), t) = duration {
+        // store the absolute elapsed time at the beginning of the evolution (needed by the islands implementation)
+        propertiesStore(AbsoluteElapsedTime) = PropertyValue[Duration](timeElapsed)
+        // get the evolution and global best (included here to account for the time needed in case the swarm is distributed)
+        (swarm.best, swarm.historyBest)
       }
 
       logger.trace(s"Properties store: $propertiesStore")
@@ -209,7 +216,7 @@ object ParticleSwarmOptimization extends LazyLogging {
 
 //      logger.info(s"Iteration summary (generations, evaluations, time(s), iteration best, global best): " +
       logger.info(s"Iteration summary: " + // the time is logged without adding the time spent in the method
-        s"${(generations, evals, timeElapsed, best, propertiesStore(GlobalBest).as[Individual]).mkString}")
+        s"${(generations, evals, timeElapsed, best, hbest).mkString}")
       logger.debug(s"TIME (onEvolutionIterationStart): $timeElapsed + $t = ${timeElapsed + t}")
       (swarm, (generations, evals), t) // return only the time spent in the method (it is accumulated in the general evolution implementation)
     }
@@ -219,31 +226,41 @@ object ParticleSwarmOptimization extends LazyLogging {
      */
     @inline override def onEvolutionIterationEnd = { s: State =>
       val (swarm, (generations, evals), timeElapsed) = super.onEvolutionIterationEnd(s) // update the stalled generations counter
-      val t = duration { updateStoredAlgorithmParameters(s) } // update stored algorithm parameters in the properties storage
+      val (size, t) = duration {
+        updateStoredAlgorithmParameters(s) // update stored algorithm parameters in the properties storage
+        swarm.size
+      }
       logger.debug(s"TIME (onEvolutionIterationEnd): ${s._3} + ${timeElapsed + t - s._3} = ${timeElapsed + t}")
       // the default value (Generations.Unit) to update the number of generations after the evolution is returned here
       // also the stored size is used to avoid collecting the swarm size on each iteration
-      (swarm, (Generations.Unit, propertiesStore(SwarmSize).as[Int] + evals), timeElapsed + t)
+      (swarm, (Generations.Unit, size + evals), timeElapsed + t)
     }
 
     // log the final state
     // TODO: check if part of the implementation can be moved to super and called from here
     @inline override def onTerminationCondition = { s: State =>
-      val (swarm, (generations, evals), timeElapsed) = s
-      val (best, t) = duration {
+      val (swarm:Swarm, (generations, evals), timeElapsed) = s
+      /*val (best, t) = duration {
         logger.debug(s"$swarm")
         // update the stored global best individual
         val best = swarm.best // swarm best
         if (best.fitness < propertiesStore(GlobalBest).as[Individual].fitness)
           propertiesStore(GlobalBest) = PropertyValue[Individual](best)
         best
+      }*/
+
+      val ((best, hbest), t) = duration {
+        logger.debug(s"$swarm")
+        // get evolution and global best individuals
+        (swarm.best, swarm.historyBest)
       }
+
       // logger.info(s"Iteration summary (generations, evaluations, time(s), iteration best, global best): " +
       logger.info(s"Iteration summary: " +
-        s"${(generations, evals, timeElapsed, best, propertiesStore(GlobalBest).as[Individual]).mkString}")
+        s"${(generations, evals, timeElapsed, best, hbest).mkString}")
       logger.info(s"Evolution summary (generations, evaluations, time(s), global best): " +
-        s"${(generations, evals, timeElapsed + t, propertiesStore(GlobalBest).as[Individual]).mkString}")
-      logger.info(s"Best solution: " + s"${propertiesStore(GlobalBest).as[Individual].element.mkString("[",",","]")}")
+        s"${(generations, evals, timeElapsed + t, hbest).mkString}")
+      logger.info(s"Best solution: " + s"${hbest.element.mkString("[", ",", "]")}")
       logger.debug(s"TIME (onTerminationCondition): $timeElapsed + $t = ${timeElapsed + t}")
 
       // Used with Docker Desktop to have time to save the executor PODs output before they are removed when the execution finishes

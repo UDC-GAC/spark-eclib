@@ -42,6 +42,11 @@ object NeighborhoodInfluenceFactory {
         particle.best.element
     }
 
+    /** The particle itself */
+    object Self {
+      def apply(): ParticleContributionFunction[Particle] = identity
+    }
+
   } // ParticleContribution
 
   object NeighborhoodInfluence extends LazyLogging {
@@ -132,7 +137,9 @@ object NeighborhoodInfluenceFactory {
 
         def apply(swarm: Swarm)(
           implicit properties: PropertiesStore): NeighborhoodInfluenceFunction[Position] = {
-          val p: Particle = properties(GlobalBest).as[Particle] // particle with global best
+          // get the particle with the global best
+          val hbest = swarm.historyBest()
+          val p: Particle = swarm.filter(_.best == hbest).contribution(ParticleContribution.Self()).values.head
           // collect the best solutions
           val sols = swarm.contribution(ParticleContribution.BestSolution())
           assert(sols.size >= 2, "Swarm size must be >= 2")
@@ -151,7 +158,7 @@ object NeighborhoodInfluenceFactory {
       def apply(swarm: Swarm, topology: ParticleSwarmTopology, cmax: Double)(
         implicit properties: PropertiesStore): NeighborhoodInfluenceFunction[Position] = topology.neighborhoodInfluence match {
         case PSONeighborhoodInfluenceBest =>
-          if (topology.self) BestNeighbor(properties(GlobalBest).as[Particle].best.element)
+          if (topology.self) BestNeighbor(swarm.historyBest.element)
           else BestNeighbor(swarm)
         case _ =>
           // force assert to fail => returning an Option is not possible because of the way [[StandardPSO]] is implemented

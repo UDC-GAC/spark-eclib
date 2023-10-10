@@ -52,7 +52,7 @@ trait ParameterInitialization {
     extends RequiredStrategyFactory[ParameterInitializationFunction] {
     val name = "ParameterInitialization"
     val strategy = ep.algorithm match {
-      case p:ParticleSwarmParameters => ParameterInitialization(p.implementation, ep.searchSpace)
+      case p:ParticleSwarmParameters => ParameterInitialization(ep.populationSize, p.implementation, ep.searchSpace)
       case _ => None
     }
   }
@@ -212,9 +212,9 @@ object ParameterInitialization extends LazyLogging {
   } // PSOStrategiesParameterInitialization
 
   object TopologyInitialization {
-    def apply(p: PSOTopologyAndStrategies)(
-      implicit properties: PropertiesStore): Option[ParameterInitializationFunction] = Topology(properties(SwarmSize).as[Int], p.topology, properties(SwarmInitialID).as[Int]) match {
-        case Some(t) =>
+    def apply(sz: Int, p: PSOTopologyAndStrategies)(
+      implicit properties: PropertiesStore): Option[ParameterInitializationFunction] = Topology(sz, p.topology, properties(SwarmInitialID).as[Int]) match {
+      case Some(t) =>
           logger.info(t.asDot(s"${p.topology.shape}"))
           Some(() => // store the topology using the workaround wrapper to support serialization
             properties(SwarmTopology) = PropertyValue[SerializableTopology](SerializableTopology(t)))
@@ -233,11 +233,11 @@ object ParameterInitialization extends LazyLogging {
     * @return a new parameter initialization function or None
     */
   // TODO: if swarm size < configured size => what happens with topology initialization? Currently the swarm size is used
-  def apply(p: PSOTopologyAndStrategies, ssp: SearchSpaceParameters)(
+  def apply(sz: Int, p: PSOTopologyAndStrategies, ssp: SearchSpaceParameters)(
     implicit properties: PropertiesStore): Option[ParameterInitializationFunction] = {
 
     @inline def strategies = PSOStrategiesParameterInitialization(p.strategies, ssp)
-    @inline def topology = TopologyInitialization(p)
+    @inline def topology = TopologyInitialization(sz, p)
 
     (strategies, topology) match {
       case (Some(s), Some(t)) => // return the function that calls the initialization functions in sequence
@@ -266,8 +266,8 @@ object ParameterInitialization extends LazyLogging {
     // create the initialization functions for the islands
     // the properties store is left as a parameter for the creation of the initialization functions and then a map on the result
     // is used to complete the creation by calling the initialization function of each island passing its properties store as argument
-    val funs = FromIslandConfigurationsCreate(isz.size, conf)(_.conf)(c => ParameterInitialization(c, ssp)(_:PropertiesStore)).zipWithIndex map {
-      case (f, i) => f(iproperties(i)) }
+    val funs = FromIslandConfigurationsCreate(isz.size, conf)(_.conf)(c => ParameterInitialization(_: Int, c, ssp)(_: PropertiesStore)).zipWithIndex map {
+      case (f, i) => f(isz(i), iproperties(i)) }
     // return None if anything has failed or the function that calls the initialization functions of the islands in sequence otherwise
     if (funs.exists(_.isEmpty)) None
     else Some(() => funs foreach ( _.get() ))
@@ -285,10 +285,10 @@ object ParameterInitialization extends LazyLogging {
     * @param properties the properties store in which the parameters will be stored
     * @return a new parameter initialization function or None
     */
-  def apply(p: ParticleSwarmImplementation, ssp: SearchSpaceParameters)(
+  def apply(sz: Int, p: ParticleSwarmImplementation, ssp: SearchSpaceParameters)(
     implicit properties: PropertiesStore): Option[ParameterInitializationFunction] = p match {
     case pso: PSOIslands => ParameterInitialization(pso.conf, ssp)
-    case pso: PSOWithSingleConfiguration => ParameterInitialization(pso.conf, ssp)
+    case pso: PSOWithSingleConfiguration => ParameterInitialization(sz, pso.conf, ssp)
     case _ => None
   }
 } // ParameterInitialization
