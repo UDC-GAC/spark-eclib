@@ -303,9 +303,11 @@ package object particleswarm {
       with CachedPopulationRDD[Particle] {
 
     override final val ord: Ordering[Particle] = ParticleOrdering // override implicit ordering
-
-    private lazy val _historyBest: Individual = rdd.map(_.best).min
-    override def historyBest(): Individual = _historyBest
+    /*
+      private lazy val _historyBest: Individual = rdd.map(_.best).min
+      override def historyBest(): Individual = _historyBest
+    */
+    override def historyBest(): Individual = rdd.map(_.best).min
 
     import SparkDistributedSwarm.SparkFunctions._
 
