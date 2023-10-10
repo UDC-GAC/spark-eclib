@@ -119,6 +119,7 @@ class GroupedPopulation(val individuals: Individuals)
 
   private lazy val _size: Int = individuals.size
   override def size: Int = _size
+
 }
 
 object GroupedPopulation extends LazyLogging {
@@ -185,11 +186,15 @@ trait CachedPopulationRDD[T] { self: DistributedPopulation =>
    *  population info that is stored lazily to avoid
    *  recalculating it on every call or when it is not used
    */
-  private lazy val _best: T = rdd.min
+  /*  private lazy val _best: T = rdd.min
   override def best: T = _best
 
   private lazy val _size: Int = rdd.count.toInt
-  override def size: Int = _size
+  override def size: Int = _size*/
+
+  override def best: T = rdd.min
+
+  override def size: Int = rdd.count.toInt
 }
 
 class SparkDistributedPopulation(override val rdd: RDD[Individual])
