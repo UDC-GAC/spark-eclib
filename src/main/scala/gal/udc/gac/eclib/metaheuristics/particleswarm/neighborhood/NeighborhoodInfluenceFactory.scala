@@ -42,11 +42,6 @@ object NeighborhoodInfluenceFactory {
         particle.best.element
     }
 
-    /** The particle itself */
-    object Self {
-      def apply(): ParticleContributionFunction[Particle] = identity
-    }
-
   } // ParticleContribution
 
   object NeighborhoodInfluence extends LazyLogging {
@@ -137,20 +132,20 @@ object NeighborhoodInfluenceFactory {
 
         def apply(swarm: Swarm)(
           implicit properties: PropertiesStore): NeighborhoodInfluenceFunction[Position] = {
-          // get the particle with the global best
-          val hbest = swarm.historyBest()
-          val p: Particle = swarm.filter(_.best == hbest).contribution(ParticleContribution.Self()).values.head
           // collect the best solutions
           val sols = swarm.contribution(ParticleContribution.BestSolution())
           assert(sols.size >= 2, "Swarm size must be >= 2")
-          // get the second global best solution
-          val gbest2 = (sols - p.id).values.min
-          logger.trace(s"BestNeighbor => Best: ${p.best}")
-          logger.trace(s"BestNeighbor => Second: $gbest2")
+          // sort (id, solution) pairs by fitness
+          val sorted = sols.toVector.sortBy(_._2)
+          logger.trace(s"BestNeighbor => Best solutions: $sorted")
+          // get the two best solutions
+          val (best, best2) = (sorted(0), sorted(1))
+          logger.trace(s"BestNeighbor => Best: ${best}")
+          logger.trace(s"BestNeighbor => Second: ${best2}")
           // return the function that do not take self into account in GBest
-          if (p.best.fitness != gbest2.fitness)
-            id => if (id == p.id) gbest2.element else p.best.element
-          else BestNeighbor(p.best.element) // if they have the same best fitness => is the same case as self=true
+          if (best._2.fitness != best2._2.fitness)
+            id => if (id == best._1) best2._2.element else best._2.element
+          else BestNeighbor(best._2.element) // if they have the same fitness => is the same case as self=true
         }
 
       } // BestNeighbor
