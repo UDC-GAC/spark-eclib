@@ -1,0 +1,277 @@
+<!--
+
+    eclib - Spark Evolutionary Computing Library
+    Copyright © 2022 Xoán C. Pardo (xoan.pardo@udc.gal)
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program. If not, see <http://www.gnu.org/licenses/>.
+
+-->
+	<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>gal.udc.gac</groupId>
+	<artifactId>eclib</artifactId>
+	<version>0.0.1-test</version>
+	<name>${project.artifactId}</name>
+	<description>Spark Evolutionary Computing Library</description>
+	<inceptionYear>2022</inceptionYear>
+	<organization>
+		<name>Universidade da Coruña (UDC)</name>
+		<url>https://www.udc.gal</url>
+	</organization>
+
+
+	<properties>
+		<maven.compiler.source>1.8</maven.compiler.source>
+		<maven.compiler.target>1.8</maven.compiler.target>
+		<encoding>UTF-8</encoding>
+		<scala.tools.version>2.12</scala.tools.version>
+		<!-- Put the Scala version of the cluster -->
+		<scala.version>2.12.15</scala.version>
+	</properties>
+	
+	<repositories>
+<!--
+ 	    <repository>
+	        <id>central</id>
+	        <name>Maven Central</name>
+	        <url>https://repo1.maven.org/maven2/</url>
+    	</repository>
+-->
+	   	<!-- repository to add org.apache.spark -->
+		<repository>
+			<id>cloudera-repo-releases</id>
+			<url>https://repository.cloudera.com/artifactory/repo/</url>
+		</repository>
+<!--
+ 		<repository>
+	        <id>artima</id>
+	        <name>Artima Maven Repository</name>
+	        <url>http://repo.artima.com/releases</url>
+    	</repository> 
+-->
+	</repositories>
+
+	<build>
+		<sourceDirectory>src/main/scala</sourceDirectory>
+		<testSourceDirectory>src/test/</testSourceDirectory>
+	    <pluginManagement>
+	        <plugins>
+	            <plugin>
+	                <groupId>net.alchim31.maven</groupId>
+	                <artifactId>scala-maven-plugin</artifactId>
+	                <version>4.4.0</version>
+	            </plugin>            
+	        </plugins>
+	    </pluginManagement>
+    	<plugins>
+			<plugin>
+				<!-- see http://davidb.github.com/scala-maven-plugin -->
+				<groupId>net.alchim31.maven</groupId>
+				<artifactId>scala-maven-plugin</artifactId>
+				<executions>
+					<execution>
+						<goals>
+							<goal>compile</goal>
+							<goal>testCompile</goal>
+						</goals>
+						<configuration>
+							<args>
+								<!-- <arg>-make:transitive</arg> -->
+								<!-- <arg>-deprecation</arg> -->
+								<!-- <arg>-feature</arg> -->
+								<arg>-dependencyfile</arg>
+								<arg>${project.build.directory}/.scala_dependencies</arg>
+							</args>
+							<checkMultipleScalaVersions>false</checkMultipleScalaVersions>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>			
+			<!-- disable surefire -->
+			<!--
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<version>2.13</version>
+					<configuration>
+						<skipTests>true</skipTests>
+						<useFile>false</useFile>
+						<disableXmlReport>true</disableXmlReport>
+ 			-->	
+	 					<!-- If you have classpath issue like NoDefClassError,... -->
+						<!-- <useManifestOnlyJar>false</useManifestOnlyJar> -->
+			<!-- 
+						<includes>
+							<include>**/*Test.*</include>
+							<include>**/*Suite.*</include>
+						</includes>
+					</configuration>
+				</plugin>
+			-->
+			<!-- enable scalatest -->
+			<plugin>
+			  <groupId>org.scalatest</groupId>
+			  <artifactId>scalatest-maven-plugin</artifactId>
+			  <version>1.0</version>
+			  <configuration>
+			    <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
+			    <junitxml>.</junitxml>
+			    <filereports>WDF TestSuite.txt</filereports>
+			  </configuration>
+			  <executions>
+			    <execution>
+			      <id>test</id>
+			      <goals>
+			        <goal>test</goal>
+			      </goals>
+			    </execution>
+			  </executions>
+			</plugin>
+			<!-- "package" command plugin -->
+			<plugin>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.3.0</version>
+				<configuration>
+					<descriptorRefs>
+						<descriptorRef>jar-with-dependencies</descriptorRef>
+					</descriptorRefs>
+					<archive>
+						<manifest>
+							<mainClass>gal.udc.gac.eclib.EclibTest</mainClass>
+						</manifest>
+					</archive>
+				</configuration>
+				<executions>
+					<execution>
+						<id>make-assembly</id>
+						<phase>package</phase>
+						<goals>
+							<goal>single</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- license headers plugin -->
+			<plugin>
+				<groupId>com.mycila</groupId>
+				<artifactId>license-maven-plugin</artifactId>
+				<version>4.3</version>
+				<configuration>
+					<properties>
+						<owner>Xoán C. Pardo</owner>
+						<email>xoan.pardo@udc.gal</email>
+					</properties>
+					<licenseSets>
+						<licenseSet>
+							<header>com/mycila/maven/plugin/license/templates/GPL-3.txt</header>
+							<excludes>
+								<exclude>COPYING</exclude>
+								<exclude>NOTICE</exclude>
+								<!-- <exclude>src/test/resources/**</exclude> -->
+								<exclude>src/main/Resources/*</exclude>
+								<exclude>src/main/scala/sna/*</exclude>
+								<exclude>src/main/java/com/sun/jna/Structure.java</exclude>
+								<exclude>testbed/kubernetes/lib/*</exclude>
+								<exclude>testbed/kubernetes/benchmarks/**</exclude>
+							</excludes>
+						</licenseSet>
+					</licenseSets>
+					<mapping>
+						<conf>SCRIPT_STYLE</conf>
+					</mapping>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+
+	<dependencies>
+		<!-- Scala and Spark dependencies -->
+		<dependency>
+			<groupId>org.scala-lang</groupId>
+			<artifactId>scala-library</artifactId>
+			<version>${scala.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>net.java.dev.jna</groupId>
+			<artifactId>jna</artifactId>
+			<version>4.0.0</version>
+			<!-- <scope>system</scope> -->
+		</dependency>
+		<!--
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>1.7.16</version>
+		</dependency> 
+		-->
+
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-math3</artifactId>
+			<version>3.6.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.spark</groupId>
+			<artifactId>spark-core_2.12</artifactId>
+			<version>3.2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scalatest</groupId>
+			<artifactId>scalatest_2.12</artifactId>
+			<version>3.2.0-SNAP10</version>
+		</dependency>
+		<dependency>
+			<groupId>com.typesafe.scala-logging</groupId>
+			<artifactId>scala-logging_2.12</artifactId>
+			<version>3.9.2</version>
+		</dependency>
+		<dependency>
+			<groupId>com.github.pureconfig</groupId>
+			<artifactId>pureconfig_2.12</artifactId>
+			<version>0.14.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scala-graph</groupId>
+			<artifactId>graph-core_2.12</artifactId>
+			<version>1.13.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scala-graph</groupId>
+			<artifactId>graph-constrained_2.12</artifactId>
+			<version>1.13.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.scala-graph</groupId>
+			<artifactId>graph-dot_2.12</artifactId>
+			<version>1.13.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jgrapht</groupId>
+			<artifactId>jgrapht-core</artifactId>
+			<version>1.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jgrapht</groupId>
+			<artifactId>jgrapht-io</artifactId>
+			<version>1.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>io.github.xoanpardo</groupId>
+			<artifactId>scala-lsgo-benchmarks_2.12</artifactId>
+			<version>0.1.2</version>
+		</dependency>
+	</dependencies>
+</project>
+
