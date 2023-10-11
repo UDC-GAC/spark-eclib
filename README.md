@@ -3,6 +3,7 @@ spark-eclib
 
 [![License](http://img.shields.io/:License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0.html)
 [![Scala](http://img.shields.io/:Scala-2.12.15-green.svg)]()
+[![DOI](https://zenodo.org/badge/702997685.svg)](https://zenodo.org/badge/latestdoi/702997685)
 
 **spark-eclib** is a framework written in Scala to support the development of distributed population-based metaheuristics and 
 their application to the global optimization of large-scale problems in [Spark](https://spark.apache.org/) clusters.
