@@ -183,6 +183,8 @@
 								<exclude>src/main/Resources/*</exclude>
 								<exclude>src/main/scala/sna/*</exclude>
 								<exclude>src/main/java/com/sun/jna/Structure.java</exclude>
+								<exclude>scala2plantUML/**</exclude>
+								<exclude>testbed/cluster/BDEv-configs/**</exclude>
 								<exclude>testbed/kubernetes/lib/*</exclude>
 								<exclude>testbed/kubernetes/benchmarks/**</exclude>
 							</excludes>
