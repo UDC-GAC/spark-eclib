@@ -19,15 +19,19 @@ on frameworks like Hadoop or Spark (e.g. [SiPDE](https://bitbucket.org/xcpardo/s
 the development of **spark-eclib** was started with the main objective of avoiding to reinvent the wheel every time 
 a new metaheuristic is implemented and to improve the automation and reproducibility of the optimization experiments.
 
-This repository contains a snapshot of the state of the source code of the framework as described in: 
->Xoán C. Pardo, Patricia González, Julio R. Banga, Ramón Doallo (2023). 
-_Population based metaheuristics in Spark: towards a general framework using PSO as a case study_ [manuscript submitted for publication]
-
 The framework provides a reduced set of abstractions to represent the general structure of population-based metaheuristics as templates from which 
 different variants of algorithms can be instantiated by the implementation of strategies. Strategies can be reused between metaheuristics, thus enforcing code reusability.
 To validate the approach, a template for Particle Swarm Optimization (PSO) was implemented applying the general abstractions provided by the framework.
 The template supports the instantiation of different variants of the PSO algorithm, a long list of configurable topologies, and 
 several execution models (i.e. sequential, master-worker and island-based).
+
+This repository contains a snapshot of the state of the source code of the framework as described in [10.1016/j.swevo.2024.101483](https://doi.org/10.1016/j.swevo.2024.101483)
+
+Citation
+--------
+
+Please, if you use **spark-eclib**, cite our work using the following reference:
+>Xoán C. Pardo, Patricia González, Julio R. Banga, Ramón Doallo. _Population based metaheuristics in Spark: towards a general framework using PSO as a case study_. Swarm and Evolutionary Computation, 85 (2024), article 101483, [10.1016/j.swevo.2024.101483](https://doi.org/10.1016/j.swevo.2024.101483)
 
 Usage
 -----
@@ -48,7 +52,7 @@ The simplest command to submit to a Spark cluster a job using **spark-eclib** wo
 Examples
 --------
 
-Refer to the **README.md** file in the `testbed\kubernetes` directory.
+Refer to the **README.md** file in the `testbed\kubernetes` and `testbed\cluster` directories.
 
 Branches
 --------
@@ -61,8 +65,6 @@ License
 -------
 
 This code is open source software licensed under the [GPLv3 License](https://www.gnu.org/licenses/gpl-3.0.html).
-
->If you use **spark-eclib** in your research, please cite our work using the reference(s) provided in this page.
 
 Contact
 -------
