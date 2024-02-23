@@ -132,18 +132,20 @@ object NeighborhoodInfluenceFactory {
 
         def apply(swarm: Swarm)(
           implicit properties: PropertiesStore): NeighborhoodInfluenceFunction[Position] = {
-          val p: Particle = properties(GlobalBest).as[Particle] // particle with global best
+          val gbest = properties(GlobalBest).as[Individual]
           // collect the best solutions
           val sols = swarm.contribution(ParticleContribution.BestSolution())
           assert(sols.size >= 2, "Swarm size must be >= 2")
+          // get the id of the particle with the global best solution
+          val gid = sols.minBy(_._2.fitness)._1
           // get the second global best solution
-          val gbest2 = (sols - p.id).values.min
-          logger.trace(s"BestNeighbor => Best: ${p.best}")
+          val gbest2 = (sols - gid).values.min
+          logger.trace(s"BestNeighbor => Best: $gbest")
           logger.trace(s"BestNeighbor => Second: $gbest2")
           // return the function that do not take self into account in GBest
-          if (p.best.fitness != gbest2.fitness)
-            id => if (id == p.id) gbest2.element else p.best.element
-          else BestNeighbor(p.best.element) // if they have the same best fitness => is the same case as self=true
+          if (gbest.fitness != gbest2.fitness)
+            id => if (id == gid) gbest2.element else gbest.element
+          else BestNeighbor(gbest.element) // if they have the same best fitness => is the same case as self=true
         }
 
       } // BestNeighbor
@@ -151,7 +153,7 @@ object NeighborhoodInfluenceFactory {
       def apply(swarm: Swarm, topology: ParticleSwarmTopology, cmax: Double)(
         implicit properties: PropertiesStore): NeighborhoodInfluenceFunction[Position] = topology.neighborhoodInfluence match {
         case PSONeighborhoodInfluenceBest =>
-          if (topology.self) BestNeighbor(properties(GlobalBest).as[Particle].best.element)
+          if (topology.self) BestNeighbor(properties(GlobalBest).as[Individual].element)
           else BestNeighbor(swarm)
         case _ =>
           // force assert to fail => returning an Option is not possible because of the way [[StandardPSO]] is implemented

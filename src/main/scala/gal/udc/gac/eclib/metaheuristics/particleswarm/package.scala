@@ -25,7 +25,7 @@ import org.apache.spark.rdd.RDD
 import org.apache.spark.util.LongAccumulator
 import gal.udc.gac.eclib._
 import gal.udc.gac.eclib.experiment.SparkExperimentContext
-import gal.udc.gac.eclib.modules.{PropertiesStore, PropertyName}
+import gal.udc.gac.eclib.modules._
 import gal.udc.gac.eclib.modules.individualimprovers.IndividualImprover.IndividualImprovementFunction
 import gal.udc.gac.eclib.searchspace._
 import gal.udc.gac.eclib.population._
@@ -63,6 +63,19 @@ package object particleswarm {
   case object VelocityLimitVmax extends PropertyName
   case object LastGlobalBest extends PropertyName   // global best of the last iteration
   case object GenerationsWithoutImprovement extends PropertyName
+
+  /**
+   * update the GlobalBest property in the given properties store if
+   * the given individual has a lower fitness
+   *
+   * @param props  the properties store
+   * @param ind    the individual to compare with the stored global best
+   */
+  @inline def updateGlobalBest(props: PropertiesStore, ind: Individual): Unit = {
+    require(props.contains(GlobalBest), "A GlobalBest entry is required in the properties store to update it")
+    if (ind.fitness < props(GlobalBest).as[Individual].fitness)
+      props(GlobalBest) = PropertyValue[Individual](ind)
+  }
 
   // island-related properties
   type IslandSizes = Vector[Int]

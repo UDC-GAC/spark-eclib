@@ -182,10 +182,9 @@ object ParticleSwarmOptimization extends LazyLogging {
       val (best, t) = duration {
         // store the absolute elapsed time at the beginning of the evolution (needed by the islands implementation)
         propertiesStore(AbsoluteElapsedTime) = PropertyValue[Duration](timeElapsed)
-        // update the best global found until now (included here to account for the time needed in case the swarm is distributed)
+        // update the best global found until now (included here to account for the time spent in case the swarm is distributed)
         val best = swarm.best
-        if (best.fitness < propertiesStore(GlobalBest).as[Individual].fitness)
-          propertiesStore(GlobalBest) = PropertyValue[Individual](best)
+        updateGlobalBest(propertiesStore, best)
         best
       }
 
@@ -219,7 +218,7 @@ object ParticleSwarmOptimization extends LazyLogging {
      */
     @inline override def onEvolutionIterationEnd = { s: State =>
       val (swarm, (generations, evals), timeElapsed) = super.onEvolutionIterationEnd(s) // update the stalled generations counter
-      val t = duration { updateStoredAlgorithmParameters(s) } // update stored algorithm parameters in the properties storage
+      val t = duration { updateStoredAlgorithmParameters(s) } // update algorithm parameters stored in the properties storage
       logger.debug(s"TIME (onEvolutionIterationEnd): ${s._3} + ${timeElapsed + t - s._3} = ${timeElapsed + t}")
       // the default value (Generations.Unit) to update the number of generations after the evolution is returned here
       // also the stored size is used to avoid collecting the swarm size on each iteration
@@ -234,8 +233,7 @@ object ParticleSwarmOptimization extends LazyLogging {
         logger.debug(s"$swarm")
         // update the stored global best individual
         val best = swarm.best // swarm best
-        if (best.fitness < propertiesStore(GlobalBest).as[Individual].fitness)
-          propertiesStore(GlobalBest) = PropertyValue[Individual](best)
+        updateGlobalBest(propertiesStore, best)
         best
       }
       // logger.info(s"Iteration summary (generations, evaluations, time(s), iteration best, global best): " +
@@ -343,23 +341,24 @@ object ParticleSwarmOptimization extends LazyLogging {
               accEvals: LongAccumulator)/*(log: CollectionAccumulator[(Generations, Double, Evaluations, Duration)])*/(
               implicit f: FitnessFunction, props: PropertiesStore): EvolutionStepFunction = {
             case (swarm: SparkDistributedSwarm, (generations, evals), timeElapsed) =>
-            val ((ns, ne), t) = duration {
-              // reset accumulators
-              val t1 = duration { accEvals.reset() /*; log.reset()*/ }
-              // Evolve islands. Note that:
-              //  - accEvals is used to accumulate the evaluations performed by each island
-              //  - the globally accumulated evaluations and the absolute elapsed time are used in the islands
-              //    to check for the termination condition at the end of each local iteration
-              val ds = swarm.evolveIslands(evals, props(AbsoluteElapsedTime).as[Duration] + timeElapsed + t1)(steps, tc)(accEvals)/*(log)*/.cache
-              // force an action on the swarm to update the accumulators
-              // the best particle is retrieved and cached here although we will not need it until later
-              val best = ds.best
-              // log accumulators. Note that all islands should have evolved for the same number of local iterations
-              // unless the termination condition is fulfilled in any of them
-              logger.debug(s"Acumulador (Evaluations): $accEvals")
-              // logger.debug(s"Acumulador (Summary): $log")
-              (ds, accEvals.value)
-            }
+              val ((ns, ne), t) = duration {
+                // reset accumulators
+                val t1 = duration { accEvals.reset() /*; log.reset()*/ }
+                // Evolve islands. Note that:
+                //  - accEvals is used to accumulate the evaluations performed by each island
+                //  - the globally accumulated evaluations and the absolute elapsed time are used in the islands
+                //    to check for the termination condition at the end of each local iteration
+                val ds = swarm.evolveIslands(evals, props(AbsoluteElapsedTime).as[Duration] + timeElapsed + t1)(steps, tc)(accEvals) /*(log)*/.cache
+                // update the global best. Note that:
+                //  - history best is used instead of best because islands evolved for several iterations
+                //  - running the historyBest action on the swarm also serves to update the accumulators
+                updateGlobalBest(props, ds.historyBest())
+                // log accumulators. Note that all islands should have evolved for the same number of local iterations
+                // unless the termination condition is fulfilled in any of them
+                logger.debug(s"Acumulador (Evaluations): $accEvals")
+                // logger.debug(s"Acumulador (Summary): $log")
+                (ds, accEvals.value)
+              }
             // workaround: because the evaluations needed to evaluate the swarm (i.e. size of the swarm) are added in onEvolutionIterationEnd
             // the number of accumulated evaluations by 1 iteration has already been subtracted in the islands. This avoids to launch an
             // extra Spark action to get the size of the new distributed swarm.
@@ -407,11 +406,37 @@ object ParticleSwarmOptimization extends LazyLogging {
           def apply(sc: SparkExperimentContext)(nIter: Int, tc: TerminationCriteria)(
               implicit f: FitnessFunction, fmove: IndexedParticleMovementFunctionFactory, props: PropertiesStore): EvolutionStepFunction = {
 
-            // build the indexed factory of evolution steps
-            // (a "decorator" for a collection of factories indexed by position)
-            val steps: IndexedEvolutionStepFunctionFactory =  i => {
-              implicit def move: ParticleMovementFunctionFactory = fmove(i)
-              Sequential()
+            // initialize island GlobalBest property
+            @inline def initializeIslandGlobalBest(props: PropertiesStore, best: Individual): Unit = {
+              //if (!props.contains(GlobalBest)) {
+              props(GlobalBest) = PropertyValue[Individual](best)
+              logger.debug(s"Initial island properties: $props")
+            }
+
+            // build the indexed factory of evolution steps (a "decorator" for a collection of factories indexed by position)
+            val steps: IndexedEvolutionStepFunctionFactory =  i => { state: State =>
+              val (swarm: SwarmIsland, (generations, evals), timeElapsed) = state
+              val iprop = props(IslandProperties).as[IslandProperties](i) // island properties
+              // logger.debug(s"TIME (before island evolution): $timeElapsed")
+              logger.debug(s"Initial island members: $swarm")
+              val (s, t) = duration {
+                if (generations == Generations.Zero) initializeIslandGlobalBest(iprop, swarm.historyBest())
+                // apply the sequential algorithm to evolve the island
+                implicit def move: ParticleMovementFunctionFactory = fmove(i) // implicit movement function factory
+                val step = Sequential()
+                val (island: SwarmIsland, ge, d) = step(state)
+                // update island GlobalBest
+                updateGlobalBest(iprop, island.best)
+                (island, ge, d) // return the new state
+              }
+              logger.whenDebugEnabled {
+                logger.debug(s"TIME (island evolution): $timeElapsed + $t = ${timeElapsed + t}")
+                logger.debug(s"Current island properties: $iprop")
+                logger.debug(s"Current island members: ${s._1}")
+              }
+              logger.info(s"Island iteration summary: " +
+                s"${(generations + 1, evals + s._2._2 + swarm.size, timeElapsed + t, s._1.best, iprop(GlobalBest).as[Individual]).mkString}")
+              (s._1, (Generations.Unit, s._2._2 + swarm.size), t)
             }
 
             apply(steps, IslandTerminationCondition(nIter, tc))(sc.longAccumulator("evaluations"))/*(
